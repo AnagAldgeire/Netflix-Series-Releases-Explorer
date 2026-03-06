@@ -1,0 +1,2809 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Netflix Series Releases Explorer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Arial, sans-serif; }
+
+#mapTitle {
+  text-align: center;
+  font-family: "Playfair Display", serif;
+  font-size: 38px;
+  font-weight: 700;
+  padding: 22px 12px 14px;
+  letter-spacing: 0.3px;
+}
+
+/* Header containing title + logo */
+#mapHeader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Netflix logo */
+#netflixLogo {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 36px;
+  opacity: 0.95;
+}
+
+    /* Layout: map on top, insights below */
+    #app { min-height: 100vh; display: flex; flex-direction: column; }
+    #mapWrap { height: 65vh; position: relative; }
+    #mapWrap svg { width: 100%; height: 100%; display: block; }
+
+    #insights {
+      padding: 12px;
+      background: rgba(0,0,0,0.04);
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 1000px) {
+  #insights { grid-template-columns: 1fr 1fr; }
+
+  /* Make Genre insights span full width */
+  #genreCard { grid-column: 1 / -1; }
+  #countryCard { grid-column: 1 / -1; }
+  #globalCard { grid-column: 1 / -1; }
+    }
+
+    .card {
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.70);
+      backdrop-filter: blur(4px);
+    }
+    .card h3 { margin: 0 0 8px 0; font-size: 14px; }
+    .card .sub { margin: 0 0 10px 0; font-size: 12px; opacity: .8; }
+
+
+/* Colored genre/subgenre text in series list */
+.gText.factual { color: #1f77ff; font-weight: 600; }
+.gText.entertainment { color: #ff8c00; font-weight: 600; }
+.gText.fiction { color: #8a2be2; font-weight: 600; }
+
+
+    /* Inline legend inside Country insights subtitle */
+.inlineLegend {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 12px;
+  vertical-align: middle;
+}
+
+.inlineLegend .item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.inlineLegend .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.inlineLegend .dot.factual { background: #1f77ff; }
+.inlineLegend .dot.entertainment { background: #ff8c00; }
+.inlineLegend .dot.fiction { background: #8a2be2; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 1000px) {
+      .split { grid-template-columns: 1fr 1fr; }
+    }
+
+    .listBox {
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 12px;
+      padding: 10px;
+      max-height: 520px;
+      overflow: auto;
+      background: rgba(0,0,0,0.03);
+      font-size: 12px;
+    }
+    .listItem { padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.08); }
+    .listItem:last-child { border-bottom: none; }
+    .metaLine { opacity: .85; font-size: 11px; margin-top: 2px; }
+
+    .chartBox {
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(0,0,0,0.03);
+    }
+    .chartTitle { font-size: 12px; font-weight: 700; margin: 0 0 6px 0; }
+    .chartBox svg { width: 100%; height: auto; display: block; }
+
+    .hidden { display: none; }
+
+    /* Map controls (same style as your step 07b) */
+    .controls {
+      position: absolute; top: 12px; left: 12px; z-index: 20;
+      background: rgba(20,20,20,0.80); color: #fff;
+      padding: 12px; border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      width: min(420px, calc(100vw - 24px));
+    }
+    .controls label { display:block; font-size:12px; opacity:.9; margin-bottom:6px; }
+    .controls input[type="text"], .controls input[type="date"], .controls select {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 10px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.10);
+      color: #fff; outline: none; font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .btnRow { display:flex; gap:8px; flex-wrap:wrap; }
+    .filterBtn, .smallBtn {
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.10);
+      color: #fff; border-radius: 10px;
+      padding: 8px 10px; font-size: 12px;
+      cursor: pointer; user-select: none;
+    }
+    .filterBtn:hover, .smallBtn:hover { background: rgba(255,255,255,0.16); }
+
+    .panel {
+      margin-top: 10px; background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px; padding: 10px;
+      display: none; max-height: 260px; overflow: auto;
+    }
+    .panelHeader { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px; }
+    .panelTitle { font-size: 12px; font-weight: 700; opacity: 0.95; }
+    .closeBtn {
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.10);
+      color: #fff; border-radius: 10px;
+      padding: 6px 8px; font-size: 12px; cursor: pointer;
+    }
+    .filterItem { display:flex; align-items:center; gap:8px; font-size: 12px; margin: 4px 0; user-select:none; }
+
+    .status {
+      margin-top: 8px; font-size: 11px; line-height: 1.3;
+      padding: 8px 10px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.25);
+      display: none;
+    }
+    .status.ok { display:block; }
+    .status.err { display:block; border-color: rgba(255,100,100,0.45); background: rgba(120,0,0,0.25); }
+    .hint { margin-top: 8px; font-size: 11px; opacity: 0.85; }
+
+#globalToggleRow{
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center; /* keeps global button centered */
+  padding: 12px 12px 0;
+}
+
+
+#globalStatsBtn{
+  border: 1px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.55);
+  border-radius: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+}
+
+#globalStatsBtn:hover{
+  background: rgba(255,255,255,0.70);
+}
+
+    /* Bottom-right time filter */
+    .timeFilter {
+      position: absolute; right: 12px; bottom: 12px; z-index: 20;
+      background: rgba(20,20,20,0.80); color: #fff;
+      padding: 12px; border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      width: min(320px, calc(100vw - 24px));
+    }
+    .timeFilter label { display:block; font-size:12px; opacity:.9; }
+    .timeFilter .row { margin-top:8px; display:flex; gap:8px; }
+    .timeFilter select {
+      flex:1; padding: 8px 10px; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.10);
+      color:#fff; outline:none; font-size: 13px;
+    }
+    .timeFilter .small { font-size:11px; opacity:.85; margin-top:6px; }
+
+    /* Bottom-left contribute button */
+    .contributeDock {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 25;
+    }
+
+    /* Bottom-left download button (subtle) */
+.downloadDock{
+  position: absolute;
+  left: 12px;
+  bottom: -10px;          
+  z-index: 26;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  width: min(420px, calc(50vw - 24px)); /* keeps it from crossing center */
+  pointer-events: auto;
+}
+
+.downloadBtn{
+  border: 1px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.35);  /* clear/subtle */
+  color: #111;
+  border-radius: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  text-align: center;
+}
+
+.downloadBtn:hover{
+  background: rgba(255,255,255,0.50);
+}
+
+.downloadLegend{
+  font-size: 11px;
+  opacity: 0.85;
+  color: rgba(255,255,255,0.85); /* readable on dark bg */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55);
+}
+
+/* Bubble legend (count intensity) */
+.bubbleLegend {
+  position: absolute;
+  right: 20px;
+  top: 78px; /* under Netflix logo */
+  z-index: 22;
+
+  background: rgba(20,20,20,0.80);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  width: 190px;
+}
+
+.bubbleLegend .legendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 11px;
+}
+
+.bubbleLegend .swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.35);
+  flex-shrink: 0;
+}
+
+.bubbleLegend .title {
+  font-weight: 700;
+  margin-bottom: 8px;
+  opacity: 0.95;
+}
+
+.bubbleLegend .bar {
+  height: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.18);
+  overflow: hidden;
+}
+
+.bubbleLegend .labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute; pointer-events:none;
+      padding: 8px 10px; border-radius: 10px;
+      background: rgba(20,20,20,0.92); color: #fff;
+      font-size: 12px; line-height: 1.25;
+      max-width: 260px; box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+      opacity: 0; transform: translate(10px, 10px);
+      transition: opacity 120ms ease; z-index: 30;
+    }
+    .tooltip .title { font-weight:700; margin-bottom:4px; }
+    .tooltip .meta { opacity: .9; }
+    .muted { opacity: .8; }
+
+/* ---- Netflix-style welcome modal ---- */
+.welcomeOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0,0,0,0.78);
+  backdrop-filter: blur(6px);
+}
+
+.welcomeModal{
+  width: min(680px, 96vw);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(20,20,20,0.95), rgba(10,10,10,0.95));
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+  padding: 18px 18px 16px;
+  color: #fff;
+}
+
+.welcomeTop{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.welcomeLogo{
+  height: 34px;
+  opacity: 0.95;
+}
+
+.welcomeTitle{
+  margin: 10px 0 8px;
+  font-family: "Playfair Display", serif;
+  font-size: 26px;
+  letter-spacing: 0.2px;
+}
+
+.welcomeText{
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+.welcomeHint{
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.10);
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.welcomeOkBtn{
+  border: 1px solid rgba(255,255,255,0.20);
+  background: rgba(229,9,20,0.92); /* Netflix red vibe */
+  color: #fff;
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.welcomeOkBtn:hover{
+  background: rgba(229,9,20,1);
+}
+
+.graphDownloadBtn{
+  margin-top: 8px;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: rgba(255,255,255,0.35);
+  color: #111;
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  display: none;            /* começa escondido */
+  width: fit-content;
+}
+
+.graphDownloadBtn:hover{
+  background: rgba(255,255,255,0.50);
+}
+
+/* Fix dropdown list text color (Year/Month selects) */
+.timeFilter select {
+  color: #fff; /* keeps the selected value readable on the dark control */
+}
+
+/* The actual dropdown options (the list that opens) */
+.timeFilter select option {
+  color: #000;            /* ✅ black text */
+  background: #fff;       /* ✅ white background */
+}
+
+/* Also fix options inside all selects (e.g., contribute panel) */
+.controls select option {
+  color: #000;
+  background: #fff;
+}
+
+
+  </style>
+</head>
+
+<body>
+
+  <!-- WELCOME MODAL -->
+<div id="welcomeOverlay" class="welcomeOverlay" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+  <div class="welcomeModal">
+    <div class="welcomeTop">
+      <img class="welcomeLogo" src="https://upload.wikimedia.org/wikipedia/commons/7/75/Netflix_icon.svg" alt="Netflix" />
+      <button id="welcomeClose" class="welcomeOkBtn" type="button">OK</button>
+    </div>
+
+    <h2 id="welcomeTitle" class="welcomeTitle">Welcome to Netflix Series Releases Explorer</h2>
+    <p class="welcomeText">
+      This is an interactive visualization to explore Netflix series releases around the world.
+    </p>
+    <p class="welcomeText">
+      To start, choose a year in the bottom-right filter - or upload your own CSV to explore another year.
+    </p>
+
+    <div class="welcomeHint">
+      Tip: Use “Filter by country / genre / subgenre” to refine the map and view insights.
+    </div>
+  </div>
+</div>
+
+  <div id="app">
+
+  <div id="mapHeader">
+    <div id="mapTitle">Netflix series releases by year</div>
+
+    <img
+      id="netflixLogo"
+      src="https://upload.wikimedia.org/wikipedia/commons/7/75/Netflix_icon.svg"
+      alt="Netflix logo"
+    />
+  </div>
+  <div id="mapWrap"></div>
+
+<div id="globalToggleRow">
+  <button id="globalStatsBtn" type="button">Click to see global statistics</button>
+</div>
+
+<div id="insights">
+
+<div id="globalCard" class="card hidden">
+  <h3 id="globalTitle">Global statistics</h3>
+  <p class="sub" id="globalSub"></p>
+
+  <div class="split">
+    <div>
+      <div class="chartTitle">Series list</div>
+      <div id="globalSeriesList" class="listBox"></div>
+    </div>
+
+    <div class="chartBox">
+      <div class="chartTitle">Top subgenres (global)</div>
+      <svg id="globalSubgenreBar" viewBox="0 0 720 520" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </div>
+</div>
+
+
+      <div id="countryCard" class="card hidden">
+        <h3 id="countryTitle">Country insights</h3>
+        <p class="sub" id="countrySub"></p>
+        <div class="split">
+          <div>
+            <div class="chartTitle">Series list</div>
+            <div id="countrySeriesList" class="listBox"></div>
+          </div>
+            <div class="chartBox" id="countryChartBox">
+            <div class="chartTitle">Top subgenres in selected country</div>
+           <svg id="countrySubgenreBar" viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="genreCard" class="card hidden">
+        <h3 id="genreTitle">Genre insights</h3>
+        <p class="sub" id="genreSub"></p>
+
+        <div class="split">
+<div class="chartBox" id="genreBarBox">
+  <div class="chartTitle">Countries with most series</div>
+  <svg id="genreCountryBar" viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<div class="chartBox" id="genrePieBox">
+  <div class="chartTitle">Subgenre distribution</div>
+  <svg id="genreSubgenrePie" viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script>
+    const mapContainer = document.getElementById("mapWrap");
+
+    // ---------- UI (same as Step 07b, with contribute panel) ----------
+    const controls = document.createElement("div");
+    controls.className = "controls";
+    controls.innerHTML = `
+      <label for="titleSearch">Search series by title</label>
+      <input id="titleSearch" type="text" placeholder="Type a title… " autocomplete="off" />
+      
+      <div id="searchResults" class="listBox" style="display:none; margin-top:-4px; max-height:260px;"></div>
+
+
+      <div class="btnRow">
+        <button class="filterBtn" data-open="genre" type="button">Filter by genre</button>
+        <button class="filterBtn" data-open="subgenre" type="button">Filter by subgenre</button>
+        <button class="filterBtn" data-open="country" type="button">Filter by country</button>
+      </div>
+
+      <div id="panel-genre" class="panel">
+        <div class="panelHeader">
+          <div class="panelTitle">Genre</div>
+          <button class="closeBtn" data-close="genre" type="button">Close</button>
+        </div>
+        <div id="list-genre"></div>
+      </div>
+
+      <div id="panel-subgenre" class="panel">
+        <div class="panelHeader">
+          <div class="panelTitle">Subgenre</div>
+          <button class="closeBtn" data-close="subgenre" type="button">Close</button>
+        </div>
+        <div id="list-subgenre"></div>
+      </div>
+
+      <div id="panel-country" class="panel">
+        <div class="panelHeader">
+          <div class="panelTitle">Country</div>
+          <button class="closeBtn" data-close="country" type="button">Close</button>
+        </div>
+        <div id="list-country"></div>
+      </div>
+
+      <div id="panel-contribute" class="panel">
+        <div class="panelHeader">
+          <div class="panelTitle">Add new series</div>
+          <button class="closeBtn" id="closeContribute" type="button">Close</button>
+        </div>
+
+        <label>Title</label>
+        <input id="cTitle" type="text" placeholder="e.g., La Nueva Serie" />
+
+        <div class="row">
+          <div style="flex:1;">
+            <label style="margin-bottom:6px; display:block;">Genre</label>
+            <select id="cGenre">
+              <option value="">Select…</option>
+              <option>Factual</option>
+              <option>Fiction</option>
+              <option>Entertainment</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="margin-bottom:6px; display:block;">Subgenre</label>
+            <input id="cSubgenre" type="text" placeholder="e.g., Drama" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div style="flex:1;">
+            <label style="margin-bottom:6px; display:block;">Release year</label>
+            <input id="cReleaseYear" type="text" inputmode="numeric" placeholder="e.g., 2025" />
+          </div>
+          <div style="flex:1;">
+            <label style="margin-bottom:6px; display:block;">Seasons</label>
+            <input id="cSeasons" type="text" inputmode="numeric" placeholder="e.g., 3" />
+          </div>
+        </div>
+
+        <label>Countries (comma-separated)</label>
+        <input id="cCountries" type="text" placeholder="e.g., Spain, France" />
+
+        <div class="row">
+          <button class="smallBtn" id="addSeries" type="button">Add series</button>
+          <button class="smallBtn" id="clearForm" type="button">Clear</button>
+        </div>
+
+        <div class="hint">New points are added instantly and filters update automatically.</div>
+      </div>
+
+      <div id="statusBox" class="status"></div>
+    `;
+    mapContainer.appendChild(controls);
+
+   const contributeDock = document.createElement("div");
+contributeDock.className = "contributeDock";
+contributeDock.innerHTML = `
+  <div style="display:flex; gap:10px; align-items:center;">
+    <button class="filterBtn" id="dockContribute" type="button">Add new series</button>
+
+    <button class="filterBtn" id="dockUpload" type="button">Upload CSV</button>
+    <input id="csvUploadInput" type="file" accept=".csv,text/csv" style="display:none;" />
+
+    <div class="hint" style="margin:0; max-width: 260px; opacity:.9;">
+      CSV columns required: <strong>title</strong>, <strong>countries</strong>, <strong>release_year</strong>, <strong>genre</strong>, <strong>subgenre</strong>, <strong>seasons</strong>, <strong>series_url</strong>
+    </div>
+  </div>
+`;
+mapContainer.appendChild(contributeDock);
+
+
+// ---------- Download button aligned with global stats row ----------
+const globalToggleRow = document.getElementById("globalToggleRow");
+
+const downloadDock = document.createElement("div");
+downloadDock.className = "downloadDock";
+downloadDock.innerHTML = `
+  <button id="downloadCsvBtn" class="downloadBtn" type="button">Download data (CSV)</button>
+  <div class="downloadLegend">
+    Exports the dataset currently in the visualisation (respects Year filter).
+  </div>
+`;
+
+globalToggleRow.appendChild(downloadDock);
+
+const downloadCsvBtn = downloadDock.querySelector("#downloadCsvBtn");
+
+
+downloadCsvBtn.addEventListener("click", ()=>{
+  if(!STATE || !STATE.rows){
+    setStatus("err", "Dataset is not loaded yet. Please wait a moment and try again.");
+    return;
+  }
+
+  const rowsToExport = filterRowsByTime(STATE.rows);
+  const label = currentPeriodLabel();
+  const filename = `netflix_series_${label}.csv`;
+
+  downloadCsvFromRows(rowsToExport, filename);
+
+  // Optional tiny feedback (won’t be flashy)
+  setStatus("ok", `Downloaded CSV: <strong>${escapeHtml(filename)}</strong> • Rows: ${rowsToExport.length}`);
+});
+
+
+    // ---------- Bubble legend (count intensity) ----------
+const bubbleLegend = document.createElement("div");
+bubbleLegend.className = "bubbleLegend";
+bubbleLegend.id = "bubbleLegend";
+bubbleLegend.style.display = "none"; // ✅ hidden until year selected
+bubbleLegend.innerHTML = `
+  <div class="title">Series releases</div>
+
+  <div class="legendRow">
+    <span class="swatch" id="bin50"></span> ≥ 50 releases
+  </div>
+  <div class="legendRow">
+    <span class="swatch" id="bin20"></span> ≥ 20 releases
+  </div>
+  <div class="legendRow">
+    <span class="swatch" id="bin10"></span> ≥ 10 releases
+  </div>
+  <div class="legendRow">
+    <span class="swatch" id="bin1"></span> &lt; 10 releases
+  </div>
+`;
+mapContainer.appendChild(bubbleLegend);
+
+    const statusBox = controls.querySelector("#statusBox");
+    function setStatus(type, msg) {
+      statusBox.className = "status " + (type === "err" ? "err" : "ok");
+      statusBox.innerHTML = msg;
+    }
+    function clearStatus() {
+      statusBox.className = "status";
+      statusBox.innerHTML = "";
+    }
+
+    const panels = {
+      genre: controls.querySelector("#panel-genre"),
+      subgenre: controls.querySelector("#panel-subgenre"),
+      country: controls.querySelector("#panel-country"),
+    };
+    const contributePanel = controls.querySelector("#panel-contribute");
+    const closeContributeBtn = controls.querySelector("#closeContribute");
+
+    function closeAllPanels(){
+      Object.values(panels).forEach(p => p.style.display="none");
+      if (contributePanel) contributePanel.style.display = "none";
+    }
+    function togglePanel(which){
+      globalOpen = false;
+      closeGlobalStats();
+      const p = panels[which];
+      const open = p.style.display === "block";
+      closeAllPanels();
+      p.style.display = open ? "none" : "block";
+    }
+
+
+  function closeGlobalStats(){
+  const globalCard = document.getElementById("globalCard"); // <-- use YOUR real global card id
+  const globalBtn  = document.getElementById("globalStatsBtn"); // <-- use YOUR real button id
+
+  if(globalCard) globalCard.classList.add("hidden");
+  if(globalBtn) globalBtn.textContent = "Click to see global statistics";
+}
+
+
+    controls.querySelectorAll(".filterBtn[data-open]").forEach(btn=>{
+      btn.addEventListener("click",(e)=>{
+        e.stopPropagation();
+        togglePanel(btn.dataset.open);
+      });
+    });
+
+    controls.querySelectorAll(".closeBtn[data-close]").forEach(btn=>{
+      btn.addEventListener("click",(e)=>{
+        e.stopPropagation();
+        panels[btn.dataset.close].style.display="none";
+      });
+    });
+
+    closeContributeBtn.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      contributePanel.style.display = "none";
+    });
+
+    contributeDock.querySelector("#dockContribute").addEventListener("click",(e)=>{
+      e.stopPropagation();
+      closeAllPanels();
+      contributePanel.style.display = "block";
+    });
+
+    document.addEventListener("click",(e)=>{
+  if(!controls.contains(e.target) && !contributeDock.contains(e.target)) {
+    closeAllPanels();
+    if(searchResultsEl){
+      searchResultsEl.style.display = "none";
+      searchResultsEl.innerHTML = "";
+    }
+  }
+});
+
+controls.addEventListener("click", (e)=>e.stopPropagation());
+
+    // Search
+    const titleSearchEl = controls.querySelector("#titleSearch");
+
+    const searchResultsEl = controls.querySelector("#searchResults");
+
+
+    // contribute fields
+    const cTitle = controls.querySelector("#cTitle");
+    const cGenre = controls.querySelector("#cGenre");
+    const cSubgenre = controls.querySelector("#cSubgenre");
+    const cReleaseYear = controls.querySelector("#cReleaseYear");
+    const cSeasons = controls.querySelector("#cSeasons");
+    const cCountries = controls.querySelector("#cCountries");
+    const addSeriesBtn = controls.querySelector("#addSeries");
+    const clearFormBtn = controls.querySelector("#clearForm");
+
+    function clearForm(){
+      cTitle.value = "";
+      cGenre.value = "";
+      cSubgenre.value = "";
+      cReleaseYear.value = "";
+      cSeasons.value = "";
+      cCountries.value = "";
+    }
+    clearFormBtn.addEventListener("click", clearForm);
+
+    // ---------- CSV Upload ----------
+const uploadBtn = contributeDock.querySelector("#dockUpload");
+const csvInput = contributeDock.querySelector("#csvUploadInput");
+
+// columns required by your current project
+const REQUIRED_COLS = ["title","countries","release_year","genre","subgenre","seasons","series_url"];
+
+function normalizeHeader(h){
+  return String(h || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+}
+
+function validateCsvColumns(rows){
+  if(!rows || !rows.length) return { ok:false, msg:"CSV is empty or could not be parsed." };
+
+  const cols = Object.keys(rows[0] || {}).map(normalizeHeader);
+  const colSet = new Set(cols);
+
+  const missing = REQUIRED_COLS.filter(c => !colSet.has(c));
+  if(missing.length){
+    return {
+      ok:false,
+      msg:`Missing required column(s): <strong>${missing.join(", ")}</strong><br/>
+           Your CSV must include: <strong>${REQUIRED_COLS.join(", ")}</strong>`
+    };
+  }
+  return { ok:true, msg:"" };
+}
+
+function remapRowKeys(row){
+  const out = {};
+  for(const [k,v] of Object.entries(row)){
+    out[normalizeHeader(k)] = v;
+  }
+  return out;
+}
+
+uploadBtn.addEventListener("click", (e)=>{
+  e.stopPropagation();
+  csvInput.value = ""; // allow uploading same file again
+  csvInput.click();
+});
+
+csvInput.addEventListener("change", async (e)=>{
+  const file = e.target.files?.[0];
+  if(!file) return;
+
+  clearStatus();
+
+  try{
+    const text = await file.text();
+    const parsed = d3.csvParse(text);
+
+    // remap headers to normalized keys
+    const rows = parsed.map(remapRowKeys);
+
+    const check = validateCsvColumns(rows);
+    if(!check.ok){
+      setStatus("err", check.msg);
+      return;
+    }
+
+   // ---- MERGE new CSV into existing dataset (preserve 2025 sample data) ----
+if(!STATE || !STATE.rows){
+  setStatus("err", "Base dataset is not loaded yet. Please refresh and try again.");
+  return;
+}
+
+// 1) merge + dedupe
+const combined = [...STATE.rows, ...rows];
+const seen = new Set();
+const deduped = [];
+for(const r of combined){
+  const k = rowKey(r);
+  if(seen.has(k)) continue;
+  seen.add(k);
+  deduped.push(r);
+}
+
+STATE.rows = deduped;
+
+// 2) rebuild everything from merged rows
+STATE.allPoints = rowsToPoints(STATE.rows);
+updateUIFromDataset(STATE.allPoints);
+STATE.positioned = computePositions(STATE.allPoints, GEO.centroids, currentZoom);
+
+// 3) (optional) keep current filters instead of resetting them
+updatePointsAndInsights();
+
+setStatus("ok", `Merged CSV: <strong>${escapeHtml(file.name)}</strong> • Added rows: ${rows.length} • Total rows: ${STATE.rows.length}`);
+
+
+    // reset filters/search (optional but usually best UX)
+    searchQuery = "";
+    titleSearchEl.value = "";
+    activeFilters.genre.clear();
+    activeFilters.subgenre.clear();
+    activeFilters.country.clear();
+    activeYear = "";
+
+    updatePointsAndInsights();
+    setStatus("ok", `Loaded CSV: <strong>${escapeHtml(file.name)}</strong> • Rows: ${rows.length}`);
+
+  } catch(err){
+    console.error(err);
+    setStatus("err", "Could not read the CSV. Please check the file format and try again.");
+  }
+});
+
+
+    // ---------- Bottom-right time filter ----------
+    const timeFilter = document.createElement("div");
+    timeFilter.className = "timeFilter";
+    timeFilter.innerHTML = `
+      <label>Release year</label>
+        <div class="row">
+        <select id="yearSelect" aria-label="Year"></select>
+        </div>
+        <div class="small">Choose a year to start the visualisation.</div>
+    `;
+    mapContainer.appendChild(timeFilter);
+    let yearSelect = timeFilter.querySelector("#yearSelect");
+
+    // ---------- D3 Map ----------
+    const svg = d3.select(mapContainer).append("svg")
+      .attr("role","img")
+      .attr("aria-label","World map with points");
+
+    const g = svg.append("g");
+    const landLayer = g.append("g").attr("class","land-layer");
+    const pointLayer = g.append("g").attr("class","point-layer");
+
+    const tooltip = d3.select(mapContainer).append("div").attr("class","tooltip");
+
+    const projection = d3.geoNaturalEarth1();
+    const path = d3.geoPath(projection);
+    
+    // ---------- Zoom Behavior ----------
+    let currentZoom = 1;
+    
+    const zoom = d3.zoom()
+      .scaleExtent([1, 8])
+      .on("zoom", (event) => {
+        currentZoom = event.transform.k;
+        g.attr("transform", event.transform);
+        
+        // Update point positions based on zoom level
+        if(STATE && GEO){
+        updatePoints(); // bubbles recompute positions from projection
+        }
+
+      });
+    
+    svg.call(zoom);
+
+    const CSV_URL_ORIGINAL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vToADOwlxU25FIlsv2VLQ0oQcmi6tQtW3wA99gW0MQNBbTq0Vv6_CeJA6rJKLgySw/pub?gid=1159166045&single=true&output=csv";
+    const GEOJSON_URL = "./world.geojson";
+
+    const GENRE_COLOR = new Map([
+      ["Factual","#1f77ff"],
+      ["Fiction","#8a2be2"],
+      ["Entertainment","#ff8c00"]
+    ]);
+
+    // ---- Grouped charts helpers (NEW) ----
+const SUBGENRE_LIMIT = 8; // limit for grouped-by-subgenre charts (adjust if you want)
+
+function subgenreColorScale(keys){
+  return d3.scaleOrdinal()
+    .domain(keys)
+    .range(d3.quantize(t => d3.interpolateTurbo(t), Math.max(3, keys.length)));
+}
+
+function topCountriesForGrouped(matched, countryKeyFn, limit=12){
+  const counts = d3.rollup(matched, v=>v.length, countryKeyFn);
+  return [...counts.entries()]
+    .map(([country, value]) => ({country, value}))
+    .sort((a,b)=>b.value-a.value)
+    .slice(0, limit)
+    .map(d => d.country);
+}
+
+function renderGroupedBar(svgSel, rows, groupKeys, opts = {}){
+  // rows: [{country:"France", values:{key1:10,key2:4}}, ...]
+  const svg = svgSel;
+  setGraphBtnVisible(svg.attr("id"), rows.length > 0);
+
+  const vb = (svg.attr("viewBox") || "").trim().split(/\s+/).map(Number);
+  const W = (vb.length === 4 && vb.every(Number.isFinite)) ? vb[2] : 720;
+  const H = (vb.length === 4 && vb.every(Number.isFinite)) ? vb[3] : 360;
+
+  const axisFont = opts.axisFont ?? 13;
+  const margin = { top: 16, right: 18, bottom: 54, left: 180 };
+
+  svg.selectAll("*").remove();
+
+  if(!rows.length){
+    svg.append("text")
+      .attr("x", 16).attr("y", 28)
+      .attr("font-size", axisFont)
+      .text("No data for this selection.");
+    return;
+  }
+
+  const innerW = W - margin.left - margin.right;
+  const innerH = H - margin.top - margin.bottom;
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const maxV = d3.max(rows, r => d3.max(groupKeys, k => r.values[k] ?? 0)) ?? 1;
+
+  const x = d3.scaleLinear().domain([0, maxV]).nice().range([0, innerW]);
+
+  const y0 = d3.scaleBand()
+    .domain(rows.map(r => r.country))
+    .range([0, innerH])
+    .padding(0.18);
+
+  const y1 = d3.scaleBand()
+    .domain(groupKeys)
+    .range([0, y0.bandwidth()])
+    .padding(0.10);
+
+  const color = opts.colorScale ?? d3.scaleOrdinal()
+    .domain(groupKeys)
+    .range(d3.quantize(t => d3.interpolateTurbo(t), Math.max(3, groupKeys.length)));
+
+  g.append("g")
+    .call(d3.axisLeft(y0).tickSize(0))
+    .selectAll("text").style("font-size", `${axisFont}px`);
+
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(6))
+    .selectAll("text").style("font-size", `${axisFont}px`);
+
+  const countryG = g.selectAll("g.row")
+    .data(rows)
+    .join("g")
+    .attr("class","row")
+    .attr("transform", d => `translate(0,${y0(d.country)})`);
+
+  countryG.selectAll("rect")
+    .data(d => groupKeys.map(k => ({ key:k, value: d.values[k] ?? 0 })))
+    .join("rect")
+    .attr("x", 0)
+    .attr("y", d => y1(d.key))
+    .attr("height", y1.bandwidth())
+    .attr("width", d => x(d.value))
+    .attr("fill", d => color(d.key))
+    .attr("opacity", 0.9);
+
+  // legend
+  const legend = svg.append("g")
+    .attr("transform", `translate(${margin.left},${H - 18})`);
+
+  const item = legend.selectAll("g")
+    .data(groupKeys)
+    .join("g")
+    .attr("transform", (d,i)=>`translate(${i*150},0)`);
+
+  item.append("rect")
+    .attr("width", 12).attr("height", 12)
+    .attr("rx", 3)
+    .attr("y", -10)
+    .attr("fill", d => color(d));
+
+  item.append("text")
+    .attr("x", 18)
+    .attr("y", 0)
+    .attr("font-size", 12)
+    .attr("dominant-baseline","middle")
+    .text(d => d);
+}
+
+    // ---------- Filters state ----------
+    let searchQuery = "";
+    const activeFilters = { genre: new Set(), subgenre: new Set(), country: new Set() };
+    let activeYear = "";
+
+    // ---------- Helpers ----------
+    function updateDownloadVisibility(){
+  const dock = document.querySelector(".downloadDock");
+  if(!dock) return;
+  dock.style.display = activeYear ? "flex" : "none";
+}
+
+    function getSize(){
+      const {width,height} = mapContainer.getBoundingClientRect();
+      return { width: Math.max(1, Math.floor(width)), height: Math.max(1, Math.floor(height)) };
+    }
+    function norm(s){
+      return String(s ?? "").trim().toLowerCase().replace(/\s+/g," ");
+    }
+    function cleanCountryRaw(s){
+      let t = String(s ?? "").trim();
+      t = t.split("/")[0].trim();
+      t = t.replace(/\s*\(.*?\)\s*/g," ").trim();
+      t = t.replace(/\s+/g," ").trim();
+      return t;
+    }
+    const COUNTRY_ALIASES = new Map([
+      ["usa","united states of america"],
+      ["u.s.","united states of america"],
+      ["u.s.a.","united states of america"],
+      ["united states","united states of america"],
+      ["south korea","korea, republic of"],
+      ["republic of korea","korea, republic of"],
+      ["canada","canada"],
+      ["canada (english)","canada"],
+      ["uk","united kingdom"],
+      ["russia","russian federation"],
+      ["brasil","brazil"],
+      ["france","france"]
+    ]);
+
+    const CENTROID_OVERRIDES = new Map([
+  // lon, lat for mainland France (Paris-ish)
+  ["france", [2.2137, 46.2276]],
+
+  // lon, lat for South Korea (approx centroid)
+  ["korea, republic of", [127.7669, 35.9078]],
+  // (optional safety, depending on your GeoJSON naming)
+  ["south korea", [127.7669, 35.9078]]
+]);
+
+    function canonicalCountryName(countryRaw){
+      const cleaned = cleanCountryRaw(countryRaw);
+      const n = norm(cleaned);
+      return COUNTRY_ALIASES.get(n) ?? n;
+    }
+    function parseYearOnly(val){
+    const s = String(val ?? "").trim();
+    if(!/^\d{4}$/.test(s)) return null;
+    return { y: s };
+    }
+    
+    function escapeHtml(str){
+      return String(str ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+
+    function currentPeriodLabel(){
+  if(!activeYear) return "all_years";
+  if(activeYear === "__TOTAL__") return "all_years";
+  return `${activeYear}`;
+}
+
+function filterRowsByTime(rows){
+  if(!activeYear || activeYear === "__TOTAL__") return rows.slice();
+
+  return rows.filter(r=>{
+    const y =
+      String(r.release_year ?? r["release_year"] ?? r["Release year"] ?? "").trim();
+    if(!/^\d{4}$/.test(y)) return false;
+    return y === activeYear;
+  });
+}
+
+function downloadCsvFromRows(rows, filename){
+  // Normalize output columns (include series_url even if blank)
+  const normalized = rows.map(r => ({
+    title: r.title ?? r.Title ?? "",
+    countries: r.countries ?? r["countries"] ?? r["Countries available"] ?? r.countries_available ?? "",
+    release_year: r.release_year ?? r["release_year"] ?? r["Release year"] ?? "",
+    genre: r.genre ?? r.Genre ?? "",
+    subgenre: r.subgenre ?? r.Subgenre ?? "",
+    seasons: r.seasons ?? r["seasons"] ?? r["Seasons"] ?? "",
+    series_url: r.series_url ?? r["series_url"] ?? r.URL ?? r.url ?? ""
+  }));
+
+  const csvText = d3.csvFormat(normalized);
+
+  const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+
+function svgToDataUri(svgEl){
+  const clone = svgEl.cloneNode(true);
+
+  // garante namespace
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+  // se não tiver viewBox, cria a partir de width/height
+  if(!clone.getAttribute("viewBox")){
+    const w = clone.viewBox?.baseVal?.width || clone.clientWidth || 720;
+    const h = clone.viewBox?.baseVal?.height || clone.clientHeight || 360;
+    clone.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  }
+
+  const svgText = new XMLSerializer().serializeToString(clone);
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
+}
+
+async function downloadSvgAsPng(svgId){
+  const svgEl = document.getElementById(svgId);
+  if(!svgEl) return;
+
+  const vb = (svgEl.getAttribute("viewBox") || "").trim().split(/\s+/).map(Number);
+  const W = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[2] : (svgEl.clientWidth || 720);
+  const H = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[3] : (svgEl.clientHeight || 360);
+
+  const img = new Image();
+  const uri = svgToDataUri(svgEl);
+
+  // Canvas para renderizar em PNG
+  const canvas = document.createElement("canvas");
+  const scale = 2; // mais nítido
+  canvas.width = Math.round(W * scale);
+  canvas.height = Math.round(H * scale);
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+
+  await new Promise((resolve, reject)=>{
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = uri;
+  });
+
+  ctx.drawImage(img, 0, 0, W, H);
+
+  const pngUrl = canvas.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.href = pngUrl;
+  a.download = `${svgId}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function setGraphBtnVisible(svgId, visible){
+  const btn = document.querySelector(`button.graphDownloadBtn[data-for="${svgId}"]`);
+  if(btn) btn.style.display = visible ? "inline-flex" : "none";
+}
+
+
+function rowKey(r){
+  // defines what "same row" means (adjust if needed)
+  const title = String(r.title ?? "").trim().toLowerCase();
+  const y = String(r.release_year ?? "").trim();
+  const countries = String(r.countries ?? "").trim().toLowerCase();
+  return `${title}__${y}__${countries}`;
+}
+
+    function genreClassName(genre){
+  const g = String(genre || "").toLowerCase().trim();
+  if (g === "factual") return "factual";
+  if (g === "entertainment") return "entertainment";
+  if (g === "fiction") return "fiction";
+  return "";
+}
+
+function renderSearchResults(){
+  if(!STATE || !searchResultsEl) return;
+
+  const q = norm(titleSearchEl.value);
+  if(!q){
+    searchResultsEl.style.display = "none";
+    searchResultsEl.innerHTML = "";
+    return;
+  }
+
+  // Use the same filtering logic already applied to the map:
+  // (year/total mode + genre/subgenre/country filters + search text)
+  // We’ll build unique series items from the matched points.
+  const matched = (STATE.allPoints || []).filter(d => passesAllFilters(d));
+
+  // Aggregate unique series across countries
+  const seriesMap = new Map();
+  for(const d of matched){
+    const key = `${d.title}__${d.release_year}__${d.genre}__${d.subgenre}`;
+    if(!seriesMap.has(key)){
+      seriesMap.set(key, {
+        title: d.title,
+        series_url: d.series_url,
+        release_year: d.release_year,
+        genre: d.genre,
+        subgenre: d.subgenre,
+        seasons: d.seasons,
+        countries: new Set()
+      });
+    }
+    seriesMap.get(key).countries.add(d.country_raw);
+  }
+
+  const series = [...seriesMap.values()]
+    .sort((a,b)=>String(a.title).localeCompare(String(b.title)))
+    .slice(0, 40); // limit to keep UI responsive
+
+  if(!series.length){
+    searchResultsEl.style.display = "block";
+    searchResultsEl.innerHTML = `<div class="listItem">No results.</div>`;
+    return;
+  }
+
+  searchResultsEl.style.display = "block";
+  searchResultsEl.innerHTML = series.map(s=>{
+    const gc = genreClassName(s.genre);
+    return `
+      <div class="listItem" data-title="${escapeHtml(s.title)}" style="cursor:pointer;">
+        <div>${titleWithUrl(s.title, s.series_url)}</div>
+        <div class="metaLine">
+          <span class="gText ${gc}">${escapeHtml(s.genre)}</span>
+          •
+          <span class="gText ${gc}">${escapeHtml(s.subgenre)}</span>
+          • ${escapeHtml(s.release_year || "—")}
+          • Seasons: ${escapeHtml(String(s.seasons || "—"))}
+        </div>
+        <div class="metaLine">
+          Countries: ${escapeHtml([...s.countries].sort().join(", "))}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Optional: clicking a result fills the search box with the title
+  searchResultsEl.querySelectorAll(".listItem[data-title]").forEach(item=>{
+    item.addEventListener("click", ()=>{
+      const t = item.getAttribute("data-title") || "";
+      titleSearchEl.value = t;
+      searchQuery = norm(t);
+      updatePointsAndInsights();
+      renderSearchResults(); // refresh list to match the locked title
+    });
+  });
+}
+
+    function buildFeatureIndex(geojson){
+      const index = new Map();
+      const features = (geojson.type==="FeatureCollection") ? geojson.features : [geojson];
+      for(const f of features){
+        const name = f?.properties?.name ?? f?.properties?.ADMIN ?? f?.properties?.admin;
+        if(!name) continue;
+        index.set(norm(name), f);
+      }
+      return { index, features };
+    }
+    function buildCentroidIndex(featureIndex){
+      const centroids = new Map();
+      for(const [name, feature] of featureIndex.entries()){
+        const c = d3.geoCentroid(feature);
+        if(Array.isArray(c) && isFinite(c[0]) && isFinite(c[1])) centroids.set(name, c);
+      }
+      return centroids;
+    }
+
+  function rowsToPoints(rows){
+  const points = [];
+  for(const r of rows){
+    const url =
+      r.series_url ?? r["series_url"] ?? r["URL"] ?? r["url"] ?? "";
+
+    const title = r.title ?? r.Title ?? "";
+    const genre = r.genre ?? r.Genre ?? "";
+    const subgenre = r.subgenre ?? r.Subgenre ?? "";
+    const releaseYear =  r.release_year ?? r["release_year"] ?? r["Release year"] ?? r["release year"] ?? "";
+    const seasons = r.seasons ?? r["seasons"] ?? r["Seasons"] ?? "";
+    const countriesRaw = r.countries ?? r["countries"] ?? r["countries available"] ?? r.countries_available ?? r["Countries available"] ?? "";
+
+    const yInfo = parseYearOnly(releaseYear);
+    const countries = String(countriesRaw).split(/[,;]+/g).map(s=>s.trim()).filter(Boolean);
+
+    for(const c of countries){
+      const countryClean = cleanCountryRaw(c);
+      points.push({
+        title: String(title),
+        title_norm: norm(title),
+        genre: String(genre),
+        subgenre: String(subgenre),
+        release_year: String(releaseYear),
+        release_y: yInfo?.y ?? "",
+        seasons: String(seasons),
+        country_raw: countryClean,
+        country_key: canonicalCountryName(c),
+        series_url: String(url).trim()   // ✅ comma added + correct placement
+      });
+    }
+  }
+  return points;
+}
+
+    function titleWithUrl(title, seriesUrl){
+    const safeTitle = escapeHtml(title || "—");
+    const url = String(seriesUrl || "").trim();
+
+    if(!url) return `<strong>${safeTitle}</strong>`;
+
+    return `
+    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+       style="color: inherit; text-decoration: underline; font-weight: 800;">
+      ${safeTitle}
+    </a>
+  `;
+}
+
+    function passesAllFilters(d){
+      if(searchQuery && !d.title_norm.includes(searchQuery)) return false;
+      if(activeFilters.genre.size && !activeFilters.genre.has(d.genre)) return false;
+      if(activeFilters.subgenre.size && !activeFilters.subgenre.has(d.subgenre)) return false;
+      if(activeFilters.country.size && !activeFilters.country.has(d.country_raw)) return false;
+      if (activeYear && activeYear !== "__TOTAL__") {
+         if (d.release_y !== activeYear) return false;
+    }
+      return true;
+    }
+
+function passesTimeOnly(d){
+  if (!activeYear) return false;
+  if (activeYear === "__TOTAL__") return true;
+  if (d.release_y !== activeYear) return false;
+  return true;
+}
+
+    function computeCountryAggregates(allPoints){
+  // Apply all current filters to the raw points
+  const matched = allPoints.filter(passesAllFilters);
+
+  // Count per country_key
+  const counts = d3.rollup(
+    matched,
+    v => v.length,
+    d => d.country_key
+  );
+
+  // Build bubbles located at centroid projection
+  const bubbles = [];
+  for (const [country_key, count] of counts.entries()){
+    const lonlat = CENTROID_OVERRIDES.get(country_key) ?? GEO?.centroids?.get(country_key);
+    if(!lonlat) continue;
+    const xy = projection(lonlat);
+    if(!xy) continue;
+
+    bubbles.push({
+      country_key,
+      country_name: country_key, // normalized name (geojson match)
+      count,
+      x: xy[0],
+      y: xy[1],
+    });
+  }
+  return bubbles;
+}
+
+    function uniqSorted(arr){
+      return [...new Set(arr)]
+        .filter(v => String(v).trim() !== "")
+        .sort((a,b)=>String(a).localeCompare(String(b)));
+    }
+
+    function buildCheckboxList(listEl, values, filterKey){
+      listEl.innerHTML = "";
+      values.forEach(v=>{
+        const label = document.createElement("label");
+        label.className = "filterItem";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = activeFilters[filterKey].has(v);
+
+        cb.addEventListener("change", ()=>{
+          closeGlobalStats();
+          if(cb.checked) activeFilters[filterKey].add(v);
+          else activeFilters[filterKey].delete(v);
+
+          updatePointsAndInsights();
+        });
+
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(v || "—"));
+        listEl.appendChild(label);
+      });
+    }
+
+    function populateTimeControls(allPoints){
+      const years = uniqSorted(allPoints.map(d=>d.release_y).filter(Boolean));
+
+    yearSelect.innerHTML =
+  `<option value="">Select a year</option>` +
+  `<option value="__TOTAL__">All years</option>` +
+    years.map(y => `<option value="${y}">${y}</option>`).join("");
+
+    // rebind safely (only year)
+    const newYear = yearSelect.cloneNode(true);
+    yearSelect.parentNode.replaceChild(newYear, yearSelect);
+    yearSelect = newYear;
+
+    newYear.addEventListener("change", ()=>{
+    activeYear = newYear.value;
+    updatePointsAndInsights();
+        });
+    }
+
+    // ---------- Map state ----------
+    let GEO = null;
+    let STATE = null;
+
+    function renderBaseMap(){
+      const { geojson, features } = GEO;
+      const { width, height } = getSize();
+      svg.attr("viewBox", `0 0 ${width} ${height}`).attr("preserveAspectRatio","xMidYMid meet");
+
+      const padding = 10;
+      projection.fitExtent([[padding,padding],[width-padding,height-padding]], geojson);
+
+      landLayer.selectAll("path.land")
+        .data(features, (d,i)=>d.id ?? d.properties?.name ?? i)
+        .join("path")
+        .attr("class","land")
+        .attr("fill","#d9d9d9")
+        .attr("stroke","#666")
+        .attr("stroke-width",0.5)
+        .attr("d", path);
+    }
+
+    function computePositions(allPoints, centroids, zoomLevel = 1){
+      const positioned = [];
+      for(const p of allPoints){
+        const lonlat = centroids.get(p.country_key);
+        if(!lonlat) continue;
+        const xy = projection(lonlat);
+        if(!xy) continue;
+        positioned.push({ ...p, x0: xy[0], y0: xy[1] });
+      }
+      
+      const byCountry = d3.group(positioned, d=>d.country_key);
+      for(const [k, arr] of byCountry){
+        const n = arr.length;
+        arr.forEach((d,i)=>{
+          if(n===1){ 
+            d.x = d.x0; 
+            d.y = d.y0; 
+            return; 
+          }
+          
+          // Zoom-dependent spread calculation
+          // At zoom 1: minimal spread (tight clustering)
+          // At zoom 5+: maximum spread (points spread within country boundaries)
+          const zoomFactor = Math.max(1, Math.min(zoomLevel, 8));
+          const spreadMultiplier = Math.pow(zoomFactor, 0.8); // Exponential scaling
+          
+          // Base radius that grows with zoom
+          const baseRadius = 3 + Math.min(8, n) * 0.5;
+          const radius = baseRadius * spreadMultiplier;
+          
+          const angle = (2*Math.PI*i)/n;
+          d.x = d.x0 + radius*Math.cos(angle);
+          d.y = d.y0 + radius*Math.sin(angle);
+        });
+      }
+      return positioned;
+    }
+
+    function updateUIFromDataset(allPoints){
+      const genres = uniqSorted(allPoints.map(d=>d.genre));
+      const subgenres = uniqSorted(allPoints.map(d=>d.subgenre));
+      const countries = uniqSorted(allPoints.map(d=>d.country_raw));
+
+      buildCheckboxList(controls.querySelector("#list-genre"), genres, "genre");
+      buildCheckboxList(controls.querySelector("#list-subgenre"), subgenres, "subgenre");
+      buildCheckboxList(controls.querySelector("#list-country"), countries, "country");
+
+      populateTimeControls(allPoints);
+    }
+
+function updatePoints(){
+  if(!STATE || !GEO) return;
+
+  // Hide bubbles and legend until a year is selected
+    if (!activeYear) {
+  pointLayer.selectAll("*").remove();
+  tooltip.style("opacity", 0);
+
+  const lg = document.getElementById("bubbleLegend");
+  if (lg) lg.style.display = "none";
+
+  updateDownloadVisibility(); // 👈 hide download
+  return;
+} else {
+  const lg = document.getElementById("bubbleLegend");
+  if (lg) lg.style.display = "block";
+
+  updateDownloadVisibility(); // 👈 show download
+}
+
+
+  // Build one bubble per country based on CURRENT filters
+  const bubbles = computeCountryAggregates(STATE.allPoints);
+
+  // ✅ FIXED bin colors (never change with filters)
+  const BIN_COLORS = {
+    lt10:  "#f6d7b0", // < 10
+    gte10: "#f4a261", // ≥ 10
+    gte20: "#e76f51", // ≥ 20
+    gte50: "#b23a2b"  // ≥ 50
+  };
+
+  // ✅ FIXED bin scale
+  const color = d3.scaleThreshold()
+    .domain([10, 20, 50])
+    .range([BIN_COLORS.lt10, BIN_COLORS.gte10, BIN_COLORS.gte20, BIN_COLORS.gte50]);
+
+  // ✅ Legend swatches also fixed
+  const setSwatch = (id, c) => {
+    const el = document.getElementById(id);
+    if (el) el.style.background = c;
+  };
+  setSwatch("bin1",  BIN_COLORS.lt10);
+  setSwatch("bin10", BIN_COLORS.gte10);
+  setSwatch("bin20", BIN_COLORS.gte20);
+  setSwatch("bin50", BIN_COLORS.gte50);
+
+  // Radius scaling (based on current selection, but COLORS stay fixed)
+  const maxCount = d3.max(bubbles, d => d.count) ?? 1;
+  const r = d3.scaleSqrt()
+    .domain([0, maxCount])
+    .range([0, 28]);
+
+  const nodes = pointLayer.selectAll("g.country-bubble")
+    .data(bubbles, d => d.country_key);
+
+  const enter = nodes.enter()
+    .append("g")
+    .attr("class", "country-bubble")
+    .attr("transform", d => `translate(${d.x},${d.y})`)
+    .style("pointer-events","all")
+    .on("mouseenter",(event,d)=>{
+  tooltip.style("opacity",1);
+
+  // ✅ show genre breakdown ONLY when:
+  // - a specific year is selected
+  // - month is "All months"
+  // - NO genre/subgenre filter is active
+  const showBreakdown =
+    activeYear &&
+    activeYear !== "__TOTAL__" &&
+    activeFilters.genre.size === 0 &&
+    activeFilters.subgenre.size === 0;
+
+  let breakdownHTML = "";
+
+  if (showBreakdown && STATE?.allPoints) {
+    // Use current filters (year + country are allowed) but genre/subgenre are already guaranteed empty here
+    const matched = STATE.allPoints.filter(passesAllFilters);
+
+    // keep only this hovered country
+    const inCountry = matched.filter(p => p.country_key === d.country_key);
+
+    const byGenre = d3.rollup(
+      inCountry,
+      v => v.length,
+      p => p.genre
+    );
+
+    const factual = byGenre.get("Factual") ?? 0;
+    const fiction = byGenre.get("Fiction") ?? 0;
+    const entertainment = byGenre.get("Entertainment") ?? 0;
+
+    breakdownHTML = `
+      <div class="meta" style="margin-top:6px;">
+        <div><strong>Factual:</strong> ${factual}</div>
+        <div><strong>Fiction:</strong> ${fiction}</div>
+        <div><strong>Entertainment:</strong> ${entertainment}</div>
+      </div>
+    `;
+  }
+
+
+  tooltip.html(`
+    <div class="title">${escapeHtml(d.country_name)}</div>
+    <div class="meta">
+      <div><strong>Total of series:</strong> ${d.count}</div>
+    </div>
+    ${breakdownHTML}
+  `);
+})
+
+    .on("mousemove",(event)=>{
+      const rect = mapContainer.getBoundingClientRect();
+      tooltip.style("left", `${event.clientX - rect.left}px`)
+             .style("top", `${event.clientY - rect.top}px`);
+    })
+    .on("mouseleave",()=>tooltip.style("opacity",0));
+
+  enter.append("circle")
+    .attr("r", 0)
+    .attr("fill", d => color(d.count))
+    .attr("stroke", "rgba(0,0,0,0.55)")
+    .attr("stroke-width", 1);
+
+  enter.append("text")
+    .attr("text-anchor","middle")
+    .attr("dy","0.35em")
+    .attr("font-size", 12)
+    .attr("font-weight", 700)
+    .attr("fill", "#000")
+    .attr("stroke", "rgba(255,255,255,0.65)")
+    .attr("stroke-width", 2)
+    .attr("paint-order", "stroke");
+
+  const merged = enter.merge(nodes);
+
+  merged.attr("transform", d => `translate(${d.x},${d.y})`);
+
+  merged.select("circle")
+    .transition().duration(200)
+    .attr("r", d => Math.max(6, r(d.count)))
+    .attr("fill", d => color(d.count));
+
+  const selectedCountryKeys = new Set(
+    [...activeFilters.country].map(c => canonicalCountryName(c))
+  );
+
+  merged.select("text")
+    .text(d => {
+      const isSelectedCountry = selectedCountryKeys.has(d.country_key);
+      const show = (d.count >= 10) || (activeFilters.country.size > 0 && isSelectedCountry);
+      return show ? d.count : "";
+    })
+    .style("display", d => {
+      const isSelectedCountry = selectedCountryKeys.has(d.country_key);
+      const show = (d.count >= 10) || (activeFilters.country.size > 0 && isSelectedCountry);
+      return show ? "block" : "none";
+    });
+
+  nodes.exit().remove();
+}
+
+    // ---------- Insights rendering ----------
+    const countryCard = document.getElementById("countryCard");
+    const genreCard = document.getElementById("genreCard");
+    const globalCard = document.getElementById("globalCard");
+    const globalTitle = document.getElementById("globalTitle");
+    const globalSub = document.getElementById("globalSub");
+    const globalSeriesList = document.getElementById("globalSeriesList");
+    const globalSubgenreBar = d3.select("#globalSubgenreBar");
+
+    let globalOpen = false;
+
+
+    const countryTitle = document.getElementById("countryTitle");
+    const countrySub = document.getElementById("countrySub");
+    const countrySeriesList = document.getElementById("countrySeriesList");
+    const countrySubgenreBar = d3.select("#countrySubgenreBar");
+
+    const genreTitle = document.getElementById("genreTitle");
+    const genreSub = document.getElementById("genreSub");
+    const genreCountryBar = d3.select("#genreCountryBar");
+    const genreSubgenrePie = d3.select("#genreSubgenrePie");
+
+
+function ensureDownloadBtnForSvg(svgId){
+  const svgEl = document.getElementById(svgId);
+  if(!svgEl) return null;
+
+  // procura o container mais próximo (chartBox)
+  const chartBox = svgEl.closest(".chartBox");
+  if(!chartBox) return null;
+
+  // evita duplicar botão
+  let btn = chartBox.querySelector(`button[data-for="${svgId}"]`);
+  if(btn) return btn;
+
+  btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "graphDownloadBtn";
+  btn.textContent = "Download graph (PNG)";
+  btn.dataset.for = svgId;
+
+  btn.addEventListener("click", ()=>{
+    downloadSvgAsPng(svgId);
+  });
+
+  chartBox.appendChild(btn);
+  return btn;
+}
+
+// cria botões para todos os SVGs de gráfico
+ensureDownloadBtnForSvg("globalSubgenreBar");   // treemap global
+ensureDownloadBtnForSvg("countrySubgenreBar");  // bar country
+ensureDownloadBtnForSvg("genreCountryBar");     // bar genre
+ensureDownloadBtnForSvg("genreSubgenrePie");    // pie genre
+
+
+    function topNCounts(items, keyFn, n=10){
+      const counts = new Map();
+      for (const it of items){
+        const k = keyFn(it);
+        if(!k) continue;
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+      return [...counts.entries()]
+        .map(([key, value]) => ({ key, value }))
+        .sort((a,b)=>b.value-a.value)
+        .slice(0,n);
+    }
+
+    function renderBar(svgSel, data, opts = {}) {
+  const svg = svgSel;
+  setGraphBtnVisible(svg.attr("id"), data.length > 0);
+
+
+  // Read size from the SVG viewBox so it scales with your HTML
+  const vb = (svg.attr("viewBox") || "").trim().split(/\s+/).map(Number);
+  const W = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[2] : 520;
+  const H = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[3] : 260;
+
+  const axisFont = opts.axisFont ?? 11;
+  const valueFont = opts.valueFont ?? axisFont;
+  const barFill = opts.barFill ?? "rgba(0,0,0,0.65)";
+
+  const margin = {
+  top: 16,
+  right: opts.marginRight ?? 70, // bigger right padding moves chart left
+  bottom: 44,
+  left: 180
+};
+
+
+  svg.selectAll("*").remove();
+
+  const innerW = W - margin.left - margin.right;
+  const innerH = H - margin.top - margin.bottom;
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  if (!data.length) {
+    g.append("text")
+      .attr("x", 0)
+      .attr("y", 24)
+      .attr("font-size", axisFont)
+      .text("No data for this selection.");
+    return;
+  }
+
+  const x = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.value)]).nice()
+    .range([0, innerW]);
+
+  const y = d3.scaleBand()
+    .domain(data.map(d => d.key))
+    .range([0, innerH])
+    .padding(0.15);
+
+  g.append("g")
+    .call(d3.axisLeft(y).tickSize(0))
+    .selectAll("text")
+    .style("font-size", `${axisFont}px`);
+
+  g.append("g")
+    .attr("transform", `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(6))
+    .selectAll("text")
+    .style("font-size", `${axisFont}px`);
+
+  g.selectAll("rect")
+    .data(data)
+    .join("rect")
+    .attr("x", 0)
+    .attr("y", d => y(d.key))
+    .attr("width", d => x(d.value))
+    .attr("height", y.bandwidth())
+    .attr("fill", d => (opts.colorMap?.get(d.key) ?? barFill));
+
+// value labels (keeps labels inside chart area)
+g.selectAll("text.val")
+  .data(data)
+  .join("text")
+  .attr("class", "val")
+  .attr("x", d => {
+    const insidePad = 6;
+    const proposed = x(d.value) + 8;
+    // if label would overflow to the right, put it inside the bar
+    return (proposed > innerW - insidePad) ? (x(d.value) - 8) : proposed;
+  })
+  .attr("text-anchor", d => {
+    const insidePad = 6;
+    const proposed = x(d.value) + 8;
+    return (proposed > innerW - insidePad) ? "end" : "start";
+  })
+  .attr("y", d => y(d.key) + y.bandwidth() / 2)
+  .attr("dy", "0.35em")
+  .attr("font-size", `${valueFont}px`)
+  .text(d => d.value);
+}
+
+    function renderPie(svgSel, data){
+      const svg = svgSel;
+      setGraphBtnVisible(svg.attr("id"), data.length > 0);
+      const vb = (svg.attr("viewBox") || "").trim().split(/\s+/).map(Number);
+      const W = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[2] : 520;
+      const H = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[3] : 260;
+
+      svg.selectAll("*").remove();
+
+      const g = svg.append("g").attr("transform", `translate(${W/2},${H/2})`);
+
+      if(!data.length){
+        g.append("text")
+          .attr("text-anchor","middle")
+          .attr("font-size", 14)
+          .text("No data for this selection.");
+        return;
+      }
+
+      const radius = Math.min(W, H) * 0.35;
+
+      const pie = d3.pie().value(d=>d.value).sort(null);
+      const arc = d3.arc().innerRadius(0).outerRadius(radius);
+
+      // simple palette (no external libs)
+      const color = d3.scaleOrdinal()
+        .domain(data.map(d=>d.key))
+        .range(d3.quantize(t => d3.interpolateTurbo(t), Math.max(3, data.length)));
+
+      const arcs = g.selectAll("path")
+        .data(pie(data))
+        .join("path")
+        .attr("d", arc)
+        .attr("fill", d => color(d.data.key))
+        .attr("stroke", "rgba(0,0,0,0.4)")
+        .attr("stroke-width", 0.6);
+
+      // center label
+      const total = d3.sum(data, d=>d.value);
+      g.append("text")
+        .attr("text-anchor","middle")
+        .attr("dy","0.35em")
+        .attr("font-size", 14)
+        .attr("fill", "#ffffff")
+        .text(`${total} items`);
+
+      // legend (right side)
+      const legend = svg.append("g").attr("transform", `translate(${W-230},${18})`);
+      const legendItems = data.slice(0, 9);
+
+      legend.selectAll("g")
+        .data(legendItems)
+        .join("g")
+        .attr("transform", (d,i)=>`translate(0,${i*22})`)
+        .call(g2=>{
+          g2.append("rect").attr("width", 14).attr("height", 14).attr("rx", 3).attr("fill", d=>color(d.key));
+          g2.append("text")
+            .attr("x", 20).attr("y", 11)
+            .attr("font-size", 13)
+            .text(d => `${d.key} (${d.value})`);
+        });
+
+      if (data.length > legendItems.length){
+        legend.append("text")
+          .attr("x", 0).attr("y", legendItems.length*22 + 12)
+          .attr("font-size", 13)
+          .attr("opacity", 0.8)
+          .text(`+${data.length - legendItems.length} more`);
+      }
+    }
+
+function renderTreemap(svgSel, points){
+  const svg = svgSel;
+  setGraphBtnVisible(svg.attr("id"), points.length > 0);
+
+
+  const vb = (svg.attr("viewBox") || "").trim().split(/\s+/).map(Number);
+  const W = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[2] : 720;
+  const H = (vb.length === 4 && vb.every(n => Number.isFinite(n))) ? vb[3] : 360;
+
+  svg.selectAll("*").remove();
+
+  if(!points.length){
+    svg.append("text")
+      .attr("x", 16)
+      .attr("y", 28)
+      .attr("font-size", 14)
+      .text("No data for this period.");
+    return;
+  }
+
+  // Build hierarchy: Genre -> Subgenre
+  const genreMap = d3.rollup(
+    points,
+    v => d3.rollup(v, vv => vv.length, d => d.subgenre),
+    d => d.genre
+  );
+
+  const rootData = {
+    name: "root",
+    children: [...genreMap.entries()].map(([genre, subMap]) => ({
+      name: genre || "—",
+      children: [...subMap.entries()].map(([sub, count]) => ({
+        name: sub || "—",
+        value: count
+      }))
+    }))
+  };
+
+  const root = d3.hierarchy(rootData)
+    .sum(d => d.value || 0)
+    .sort((a,b) => (b.value || 0) - (a.value || 0));
+
+  d3.treemap()
+    .size([W, H])
+    .paddingOuter(8)
+    .paddingTop(26)     // space for genre label
+    .paddingInner(4)
+    (root);
+
+  // Big genre rectangles
+  const genreNodes = root.children || [];
+
+  const g = svg.append("g");
+
+  const genreG = g.selectAll("g.genre")
+    .data(genreNodes)
+    .join("g")
+    .attr("class","genre")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  genreG.append("rect")
+    .attr("width", d => Math.max(0, d.x1 - d.x0))
+    .attr("height", d => Math.max(0, d.y1 - d.y0))
+    .attr("rx", 10)
+    .attr("fill", d => GENRE_COLOR.get(d.data.name) ?? "rgba(0,0,0,0.25)")
+    .attr("opacity", 0.35)
+    .attr("stroke", "rgba(0,0,0,0.25)");
+
+  // Genre labels
+  genreG.append("text")
+    .attr("x", 10)
+    .attr("y", 18)
+    .attr("font-size", 14)
+    .attr("font-weight", 800)
+    .attr("fill", "#111")
+    .text(d => {
+      const total = d.value || 0;
+      return `${d.data.name} (${total})`;
+    });
+
+  // Subgenre rectangles inside each genre
+  const leaves = root.leaves();
+
+  const leaf = g.selectAll("g.leaf")
+    .data(leaves)
+    .join("g")
+    .attr("class","leaf")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  leaf.append("rect")
+    .attr("width", d => Math.max(0, d.x1 - d.x0))
+    .attr("height", d => Math.max(0, d.y1 - d.y0))
+    .attr("rx", 6)
+    .attr("fill", d => GENRE_COLOR.get(d.parent?.data?.name) ?? "rgba(0,0,0,0.55)")
+    .attr("opacity", 0.85)
+    .attr("stroke", "rgba(255,255,255,0.75)")
+    .attr("stroke-width", 1);
+
+  // Subgenre labels (only when there is space)
+  leaf.each(function(d){
+    const w = (d.x1 - d.x0);
+    const h = (d.y1 - d.y0);
+    if (w < 60 || h < 22) return;
+
+    d3.select(this).append("text")
+      .attr("x", 8)
+      .attr("y", 18)
+      .attr("font-size", 12)
+      .attr("font-weight", 700)
+      .attr("fill", "#111")
+      .text(d.data.name);
+
+    if (h >= 34){
+      d3.select(this).append("text")
+        .attr("x", 8)
+        .attr("y", 36)
+        .attr("font-size", 12)
+        .attr("fill", "#111")
+        .text(d.value);
+    }
+  });
+}
+
+
+  function renderCountryInsights(matched){
+  const selectedCountries = [...activeFilters.country.values()];
+  const selectedGenres = [...activeFilters.genre.values()];
+  const selectedSubgenres = [...activeFilters.subgenre.values()];
+
+
+// --- HARD UI RULE: Country + Subgenre => hide the whole "Top subgenres..." box
+const countryChartBox = document.getElementById("countryChartBox");
+const subgenreAndCountry = selectedCountries.length > 0 && selectedSubgenres.length > 0;
+
+if (countryChartBox) {
+  countryChartBox.style.display = subgenreAndCountry ? "none" : "";
+}
+
+// Also wipe the SVG to be safe
+if (subgenreAndCountry) {
+  d3.select("#countrySubgenreBar").selectAll("*").remove();
+  setGraphBtnVisible("countrySubgenreBar", false);
+}
+
+
+  if (!selectedCountries.length){
+    countryCard.classList.add("hidden");
+    return;
+  }
+
+  countryCard.classList.remove("hidden");
+
+  countryTitle.textContent = "Country insights";
+  countrySub.innerHTML = `
+    Selected: ${escapeHtml(selectedCountries.join(", "))} • Matching points: ${matched.length}
+    <span class="inlineLegend">
+      <span class="item"><span class="dot factual"></span>Factual</span>
+      <span class="item"><span class="dot entertainment"></span>Entertainment</span>
+      <span class="item"><span class="dot fiction"></span>Fiction</span>
+    </span>
+  `;
+
+  // -------- Series list ----------
+  // If multiple countries, render separate lists (your rule)
+  if (selectedCountries.length > 1){
+    countrySeriesList.innerHTML = selectedCountries.map(cn => {
+      const inC = matched.filter(d => d.country_raw === cn);
+
+      const seriesMap = new Map();
+      for (const d of inC){
+        const key = `${d.title}__${d.release_year}__${d.genre}__${d.subgenre}`;
+        if(!seriesMap.has(key)){
+          seriesMap.set(key, {
+            title: d.title,
+            series_url: d.series_url,
+            release_year: d.release_year,
+            genre: d.genre,
+            subgenre: d.subgenre,
+            seasons: d.seasons,
+            countries: new Set()
+          });
+        }
+        seriesMap.get(key).countries.add(d.country_raw);
+      }
+
+      const series = [...seriesMap.values()].sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+
+      return `
+        <div style="margin-bottom:12px;">
+          <div style="font-weight:800; margin-bottom:6px;">${escapeHtml(cn)}</div>
+          <div class="listBox" style="max-height:260px;">
+            ${
+              series.length
+                ? series.map(s => {
+                    const gc = genreClassName(s.genre);
+                    return `
+                      <div class="listItem">
+                        <div>${titleWithUrl(s.title, s.series_url)}</div>
+                        <div class="metaLine">
+                          <span class="gText ${gc}">${escapeHtml(s.genre)}</span>
+                          • <span class="gText ${gc}">${escapeHtml(s.subgenre)}</span>
+                          • ${escapeHtml(s.release_year || "—")}
+                          • Seasons: ${escapeHtml(String(s.seasons || "—"))}
+                        </div>
+                      </div>
+                    `;
+                  }).join("")
+                : `<div class="listItem">No series for this country in the selection.</div>`
+            }
+          </div>
+        </div>
+      `;
+    }).join("");
+  } else {
+    // single country => keep your original aggregated list
+    const seriesMap = new Map();
+    for (const d of matched){
+      const key = `${d.title}__${d.release_year}__${d.genre}__${d.subgenre}`;
+      if(!seriesMap.has(key)){
+        seriesMap.set(key, {
+          title: d.title,
+          series_url: d.series_url,
+          release_year: d.release_year,
+          genre: d.genre,
+          subgenre: d.subgenre,
+          seasons: d.seasons,
+          countries: new Set()
+        });
+      }
+      seriesMap.get(key).countries.add(d.country_raw);
+    }
+
+    const series = [...seriesMap.values()].sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+
+    countrySeriesList.innerHTML = series.length
+      ? series.map(s => {
+          const gc = genreClassName(s.genre);
+          return `
+            <div class="listItem">
+              <div>${titleWithUrl(s.title, s.series_url)}</div>
+              <div class="metaLine">
+                <span class="gText ${gc}">${escapeHtml(s.genre)}</span>
+                • <span class="gText ${gc}">${escapeHtml(s.subgenre)}</span>
+                • ${escapeHtml(s.release_year || "—")}
+                • Seasons: ${escapeHtml(String(s.seasons || "—"))}
+              </div>
+              <div class="metaLine">
+                Countries: ${escapeHtml([...s.countries].sort().join(", "))}
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `<div class="listItem">No series for this selection.</div>`;
+  }
+
+  // -------- Chart rules ----------
+  // Rule: Subgenre + Country => keep ONLY series list
+  if (selectedSubgenres.length > 0){
+    countrySubgenreBar.selectAll("*").remove();
+    setGraphBtnVisible("countrySubgenreBar", false);
+    return;
+  }
+
+  // Rule: Genre + Country => keep only series list + bar chart (top subgenres within selected genre)
+  // (matched already includes genre filter because passesAllFilters uses activeFilters.genre)
+  if (selectedGenres.length > 0){
+    const subgenreTop = topNCounts(matched, d => d.subgenre, 12);
+
+    // color map = selected genre color (or dominant if multiple genres)
+    const colorMap = new Map();
+    for (const row of subgenreTop){
+      // if multiple genres selected (rare here), pick dominant
+      const genreCounts = new Map();
+      for (const d of matched){
+        if (d.subgenre !== row.key) continue;
+        genreCounts.set(d.genre, (genreCounts.get(d.genre) ?? 0) + 1);
+      }
+      let bestGenre = "";
+      let bestCount = -1;
+      for (const [g, c] of genreCounts.entries()){
+        if (c > bestCount) { bestGenre = g; bestCount = c; }
+      }
+      colorMap.set(row.key, GENRE_COLOR.get(bestGenre) ?? "rgba(0,0,0,0.65)");
+    }
+
+    renderBar(countrySubgenreBar, subgenreTop, {
+      axisFont: 14,
+      valueFont: 14,
+      marginRight: 90,
+      colorMap
+    });
+    return;
+  }
+
+  // Rule: Only 1 country (no genre/subgenre) => treemap like global
+  if (selectedCountries.length === 1){
+    renderTreemap(countrySubgenreBar, matched);
+    return;
+  }
+
+  // Rule: 2+ countries (no genre/subgenre) => grouped bar by subgenre
+  // Use top subgenres overall for readability
+  const subTop = topNCounts(matched, d => d.subgenre, SUBGENRE_LIMIT);
+  const subKeys = subTop.map(d => d.key);
+
+  if (subKeys.length > SUBGENRE_LIMIT){
+    countrySubgenreBar.selectAll("*").remove();
+    countrySubgenreBar.append("text")
+      .attr("x", 18).attr("y", 32)
+      .attr("font-size", 14)
+      .text(`Limit of only ${SUBGENRE_LIMIT} subgenres per visualisation.`);
+    setGraphBtnVisible("countrySubgenreBar", false);
+    return;
+  }
+
+  const rows = selectedCountries.map(countryName => {
+    const inCountry = matched.filter(d => d.country_raw === countryName);
+    const values = {};
+    subKeys.forEach(sg => values[sg] = inCountry.filter(x => x.subgenre === sg).length);
+    return { country: countryName, values };
+  });
+
+  const subColor = subgenreColorScale(subKeys);
+  renderGroupedBar(countrySubgenreBar, rows, subKeys, {
+    colorScale: subColor,
+    axisFont: 14
+  });
+}
+
+    function renderGlobalInsights(){
+  if(!STATE) return;
+
+  if(!globalOpen){
+    globalCard.classList.add("hidden");
+    return;
+  }
+
+  // only based on time filter (year/month), ignoring other filters
+  const matched = STATE.allPoints.filter(passesTimeOnly);
+
+  globalCard.classList.remove("hidden");
+
+  // Subtitle label
+  const periodLabel = (!activeYear) ? "No year selected"
+    : (activeYear === "__TOTAL__" ? "All years"
+    : `${activeYear}`);
+
+  globalTitle.textContent = "Global statistics";
+  globalSub.innerHTML = `
+  Period: ${escapeHtml(periodLabel)} • Matching points: ${matched.length}
+  <span class="inlineLegend">
+    <span class="item"><span class="dot factual"></span>Factual</span>
+    <span class="item"><span class="dot entertainment"></span>Entertainment</span>
+    <span class="item"><span class="dot fiction"></span>Fiction</span>
+  </span>
+`;
+
+  // Unique series list (not duplicated per country)
+  const seriesMap = new Map();
+  for (const d of matched){
+    const key = `${d.title}__${d.release_year}__${d.genre}__${d.subgenre}`;
+    if(!seriesMap.has(key)){
+      seriesMap.set(key, {
+        title: d.title,
+        series_url: d.series_url,
+        release_year: d.release_year,
+        genre: d.genre,
+        subgenre: d.subgenre,
+        seasons: d.seasons,
+        countries: new Set()
+      });
+    }
+    seriesMap.get(key).countries.add(d.country_raw);
+  }
+
+  const series = [...seriesMap.values()].sort((a,b)=>String(a.title).localeCompare(String(b.title)));
+
+  globalSeriesList.innerHTML = series.length
+    ? series.map(s=>{
+        const gc = genreClassName(s.genre);
+        return `
+          <div class="listItem">
+            <div>${titleWithUrl(s.title, s.series_url)}</div>
+            <div class="metaLine">
+              <span class="gText ${gc}">${escapeHtml(s.genre)}</span>
+              •
+              <span class="gText ${gc}">${escapeHtml(s.subgenre)}</span>
+              • ${escapeHtml(s.release_year || "—")}
+              • Seasons: ${escapeHtml(String(s.seasons || "—"))}
+            </div>
+            <div class="metaLine">
+              Countries: ${escapeHtml([...s.countries].sort().join(", "))}
+            </div>
+          </div>
+        `;
+      }).join("")
+    : `<div class="listItem">No series for this period.</div>`;
+
+ renderTreemap(globalSubgenreBar, matched);
+}
+
+ function renderGenreInsights(matched){
+
+  
+  // ✅ If Country + Subgenre are selected, keep ONLY Country insights
+  if (activeFilters.country.size > 0 && activeFilters.subgenre.size > 0){
+    genreCard.classList.add("hidden");
+
+    // wipe charts + hide download buttons
+    d3.select("#genreCountryBar").selectAll("*").remove();
+    d3.select("#genreSubgenrePie").selectAll("*").remove();
+    setGraphBtnVisible("genreCountryBar", false);
+    setGraphBtnVisible("genreSubgenrePie", false);
+
+    return; // ✅ do not render anything in this card
+  }
+  
+  const selectedGenres = [...activeFilters.genre.values()];
+  const selectedSubgenres = [...activeFilters.subgenre.values()];
+  const selectedCountries = [...activeFilters.country.values()];
+
+
+// ---- ✅ NEW: hide "Subgenre distribution" whenever subgenre is filtered (any scenario) ----
+  const pieSvgEl = document.getElementById("genreSubgenrePie");
+  const pieBox = pieSvgEl?.closest(".chartBox");
+
+  const hideSubgenreDistribution = selectedSubgenres.length > 0;
+
+  if (pieBox) pieBox.style.display = hideSubgenreDistribution ? "none" : "";
+  d3.select("#genreSubgenrePie").selectAll("*").remove();
+  setGraphBtnVisible("genreSubgenrePie", false);
+
+
+  // If Genre + Country => eliminate this whole card (your rule)
+  if (selectedCountries.length > 0 && selectedGenres.length > 0){
+    genreCard.classList.add("hidden");
+    return;
+  }
+
+  // If nothing to show (no genre AND no subgenre) => hide
+  if (!selectedGenres.length && !selectedSubgenres.length){
+    genreCard.classList.add("hidden");
+    return;
+  }
+
+  genreCard.classList.remove("hidden");
+
+  // -----------------------------
+  // CASE A: Only Genre filtered
+  // -----------------------------
+  if (selectedGenres.length > 0 && selectedSubgenres.length === 0){
+    genreTitle.textContent = "Genre insights";
+    genreSub.textContent = `Selected: ${selectedGenres.join(", ")} • Matching points: ${matched.length}`;
+
+    // 1 genre => keep your current behavior
+    if (selectedGenres.length === 1){
+      const topCountries = topNCounts(matched, d=>d.country_raw, 12);
+      const g = selectedGenres[0];
+      const genreFill = GENRE_COLOR.get(g) ?? "rgba(0,0,0,0.65)";
+
+      renderBar(genreCountryBar, topCountries, {
+        axisFont: 14,
+        valueFont: 14,
+        barFill: genreFill,
+        marginRight: 90
+      });
+
+      const subgenreCounts = topNCounts(matched, d=>d.subgenre, 50);
+      renderPie(genreSubgenrePie, subgenreCounts);
+      return;
+    }
+
+    // 2+ genres => grouped bar by genre
+    const topCountriesList = topCountriesForGrouped(matched, d=>d.country_raw, 12);
+
+    const rows = topCountriesList.map(country => {
+      const inCountry = matched.filter(d => d.country_raw === country);
+      const values = {};
+      selectedGenres.forEach(g => values[g] = inCountry.filter(x => x.genre === g).length);
+      return { country, values };
+    });
+
+    const genreColor = d3.scaleOrdinal()
+      .domain(selectedGenres)
+      .range(selectedGenres.map(g => GENRE_COLOR.get(g) ?? "#888"));
+
+    renderGroupedBar(genreCountryBar, rows, selectedGenres, {
+      colorScale: genreColor,
+      axisFont: 14
+    });
+
+   // Pie: subgenre distribution (only when NOT filtering by subgenre)
+  if (!hideSubgenreDistribution){
+    const subgenreCounts = topNCounts(matched, d=>d.subgenre, 50);
+    renderPie(genreSubgenrePie, subgenreCounts);
+  }
+  } 
+
+  // -----------------------------
+  // CASE B: Only Subgenre filtered
+  // -----------------------------
+  if (selectedGenres.length === 0 && selectedSubgenres.length > 0){
+    genreTitle.textContent = "Subgenre insights";
+    genreSub.textContent = `Selected: ${selectedSubgenres.join(", ")} • Matching points: ${matched.length}`;
+
+    // Always remove pie in subgenre-only mode
+    genreSubgenrePie.selectAll("*").remove();
+    setGraphBtnVisible("genreSubgenrePie", false);
+
+    // 1 subgenre => simple bar
+    if (selectedSubgenres.length === 1){
+      const topCountries = topNCounts(matched, d=>d.country_raw, 12);
+      renderBar(genreCountryBar, topCountries, {
+        axisFont: 14,
+        valueFont: 14,
+        marginRight: 90,
+        barFill: "rgba(0,0,0,0.65)"
+      });
+      return;
+    }
+
+    // 2+ subgenres => grouped bar by subgenre (limit)
+    if (selectedSubgenres.length > SUBGENRE_LIMIT){
+      genreCountryBar.selectAll("*").remove();
+      genreCountryBar.append("text")
+        .attr("x", 18).attr("y", 32)
+        .attr("font-size", 14)
+        .text(`Limit of only ${SUBGENRE_LIMIT} subgenres per visualisation.`);
+      setGraphBtnVisible("genreCountryBar", false);
+      return;
+    }
+
+    const topCountriesList = topCountriesForGrouped(matched, d=>d.country_raw, 12);
+
+    const rows = topCountriesList.map(country => {
+      const inCountry = matched.filter(d => d.country_raw === country);
+      const values = {};
+      selectedSubgenres.forEach(sg => values[sg] = inCountry.filter(x => x.subgenre === sg).length);
+      return { country, values };
+    });
+
+    const subColor = subgenreColorScale(selectedSubgenres);
+    renderGroupedBar(genreCountryBar, rows, selectedSubgenres, {
+      colorScale: subColor,
+      axisFont: 14
+    });
+
+    return;
+  }
+
+  // --------------------------------
+  // CASE C: Genre + Subgenre filtered
+  // --------------------------------
+  if (selectedGenres.length > 0 && selectedSubgenres.length > 0){
+    genreTitle.textContent = "Genre + Subgenre insights";
+    genreSub.textContent =
+      `Genre: ${selectedGenres.join(", ")} • Subgenre: ${selectedSubgenres.join(", ")} • Matching points: ${matched.length}`;
+
+    // Remove pie (your rule)
+    genreSubgenrePie.selectAll("*").remove();
+    setGraphBtnVisible("genreSubgenrePie", false);
+
+    // grouped by subgenre, with limit
+    if (selectedSubgenres.length > SUBGENRE_LIMIT){
+      genreCountryBar.selectAll("*").remove();
+      genreCountryBar.append("text")
+        .attr("x", 18).attr("y", 32)
+        .attr("font-size", 14)
+        .text(`Limit of only ${SUBGENRE_LIMIT} subgenres per visualisation.`);
+      setGraphBtnVisible("genreCountryBar", false);
+      return;
+    }
+
+    const topCountriesList = topCountriesForGrouped(matched, d=>d.country_raw, 12);
+
+    const rows = topCountriesList.map(country => {
+      const inCountry = matched.filter(d => d.country_raw === country);
+      const values = {};
+      selectedSubgenres.forEach(sg => values[sg] = inCountry.filter(x => x.subgenre === sg).length);
+      return { country, values };
+    });
+
+    const subColor = subgenreColorScale(selectedSubgenres);
+    renderGroupedBar(genreCountryBar, rows, selectedSubgenres, {
+      colorScale: subColor,
+      axisFont: 14
+    });
+
+    return;
+  }
+}
+
+function updateInsights(){
+  if(!STATE) return;
+
+  const matched = STATE.allPoints.filter(passesAllFilters);
+
+  renderCountryInsights(matched);
+  renderGenreInsights(matched);
+  renderGlobalInsights();
+
+  // ✅ hard rule: Country + Subgenre => hide the subgenre/genre card
+  if (activeFilters.country.size > 0 && activeFilters.subgenre.size > 0){
+    genreCard.classList.add("hidden");
+  }
+}
+
+
+function applyInsightsVisibilityRules(){
+  const hasGenre = activeFilters.genre.size > 0;
+  const hasSub   = activeFilters.subgenre.size > 0;
+  const hasCtry  = activeFilters.country.size > 0;
+
+  // --- Rule A:
+  // If ONLY a subgenre is filtered OR (genre + subgenre),
+  // hide "Subgenre distribution" block (pie).
+  const pieBox = document.getElementById("genrePieBox");
+  if (pieBox){
+    const showPie = hasGenre && !hasSub;   // show ONLY when genre is filtered and NO subgenre filter
+    pieBox.classList.toggle("hidden", !showPie);
+
+    if(!showPie){
+      d3.select("#genreSubgenrePie").selectAll("*").remove();
+      setGraphBtnVisible("genreSubgenrePie", false);
+    }
+  }
+
+  // --- Rule B:
+  // If Subgenre + Country are filtered together:
+  // - Hide "Top subgenres in selected country" (country chart)
+  // - Hide "Countries with most series" (bar) and pie (entire genre/subgenre insights charts)
+  // - Keep ONLY the series list (country list).
+  const subgenreAndCountry = hasSub && hasCtry;
+
+  // Hide the whole "subgenre/genre insights" card (this removes Countries+Pie blocks)
+  if (subgenreAndCountry){
+    genreCard.classList.add("hidden");
+    d3.select("#genreCountryBar").selectAll("*").remove();
+    d3.select("#genreSubgenrePie").selectAll("*").remove();
+    setGraphBtnVisible("genreCountryBar", false);
+    setGraphBtnVisible("genreSubgenrePie", false);
+     // ✅ also hide the actual button elements if they were appended
+  const b1 = document.querySelector(`button.graphDownloadBtn[data-for="genreCountryBar"]`);
+  const b2 = document.querySelector(`button.graphDownloadBtn[data-for="genreSubgenrePie"]`);
+  if (b1) b1.style.display = "none";
+  if (b2) b2.style.display = "none";
+  }
+
+  // Hide the country chart box, keep the series list
+  const countryChartBox = document.getElementById("countryChartBox");
+  if (countryChartBox){
+    countryChartBox.classList.toggle("hidden", subgenreAndCountry);
+    if(subgenreAndCountry){
+      d3.select("#countrySubgenreBar").selectAll("*").remove();
+      setGraphBtnVisible("countrySubgenreBar", false);
+    }
+  }
+}
+
+    function updatePointsAndInsights(){
+      updatePoints();
+      updateInsights();
+    }
+
+    // ---------- Contribute logic ----------
+    function isPositiveIntString(s){
+      const t = String(s ?? "").trim();
+      return /^\d+$/.test(t) && Number(t) >= 0;
+    }
+
+    addSeriesBtn.addEventListener("click", (e)=>{
+      e.preventDefault();
+      clearStatus();
+
+      const title = cTitle.value.trim();
+      const genre = cGenre.value.trim();
+      const subgenre = cSubgenre.value.trim();
+      const releaseYear = cReleaseYear.value.trim();
+      const seasons = cSeasons.value.trim();
+      const countriesText = cCountries.value.trim();
+
+      if(!title) return setStatus("err","Please fill <strong>Title</strong>.");
+      if(!genre) return setStatus("err","Please select a <strong>Genre</strong>.");
+      if(!subgenre) return setStatus("err","Please fill <strong>Subgenre</strong>.");
+      if(!releaseYear || !parseYearOnly(releaseYear))  return setStatus("err","Please provide a valid <strong>Release year</strong> (YYYY).");
+      if(!isPositiveIntString(seasons)) return setStatus("err","<strong>Seasons</strong> must be a whole number (e.g., 3).");
+      if(!countriesText) return setStatus("err","Please fill <strong>Countries</strong> (comma-separated).");
+
+      const newRow = {
+        title,
+        genre,
+        subgenre,
+        release_year: releaseYear,
+        seasons: seasons,
+        countries: countriesText
+      };
+
+      STATE.rows.push(newRow);
+      STATE.allPoints = rowsToPoints(STATE.rows);
+      updateUIFromDataset(STATE.allPoints);
+      // Recompute positions with current zoom level
+
+      searchQuery = norm(titleSearchEl.value);
+
+      updatePointsAndInsights();
+      setStatus("ok", `Added: <strong>${escapeHtml(title)}</strong> (${escapeHtml(releaseYear)})`);
+      clearForm();
+
+      contributePanel.style.display = "none";
+    });
+
+    // ---------- Load initial data ----------
+    Promise.all([ d3.json(GEOJSON_URL), d3.csv(CSV_URL_ORIGINAL) ])
+      .then(([geojson, rows])=>{
+        const { index, features } = buildFeatureIndex(geojson);
+        const centroids = buildCentroidIndex(index);
+        GEO = { geojson, features, centroids };
+
+        renderBaseMap();
+
+        const allPoints = rowsToPoints(rows);
+        STATE = { rows: rows.slice(), allPoints };
+
+        updateUIFromDataset(allPoints);
+        updatePointsAndInsights();
+
+        // search listener
+        titleSearchEl.addEventListener("input", ()=>{
+          searchQuery = norm(titleSearchEl.value);
+          updatePointsAndInsights();
+          renderSearchResults();
+        });
+
+        // resize
+        let raf=null;
+        window.addEventListener("resize", ()=>{
+          cancelAnimationFrame(raf);
+          raf = requestAnimationFrame(()=>{
+            renderBaseMap();
+            // Recompute positions with current zoom level
+            updatePointsAndInsights();
+          });
+        });
+      })
+      .catch(err=>{
+        console.error(err);
+        mapContainer.innerHTML = `<div style="padding:16px">Couldn’t load data. Check world.geojson + CSV URL.</div>`;
+      });
+
+      const globalStatsBtn = document.getElementById("globalStatsBtn");
+globalStatsBtn.addEventListener("click", ()=>{
+  globalOpen = !globalOpen;
+  globalStatsBtn.textContent = globalOpen
+    ? "Hide global statistics"
+    : "Click to see global statistics";
+
+  updateInsights(); // re-render with current year/month
+});
+
+// ---- Welcome modal behavior ----
+const welcomeOverlay = document.getElementById("welcomeOverlay");
+const welcomeClose = document.getElementById("welcomeClose");
+const welcomeSound = document.getElementById("welcomeSound");
+
+// Optional: hide the app behind until OK
+const appEl = document.getElementById("app");
+if (appEl) appEl.style.visibility = "hidden";
+
+// Try to play sound on open (may be blocked by browser autoplay rules)
+if (welcomeSound) {
+  welcomeSound.currentTime = 0;
+  const p = welcomeSound.play();
+  if (p && typeof p.catch === "function") p.catch(()=>{ /* ignored */ });
+}
+
+function closeWelcome(){
+  if (welcomeOverlay) welcomeOverlay.style.display = "none";
+  if (appEl) appEl.style.visibility = "visible";
+
+  // If autoplay was blocked, try playing on user gesture (OK click)
+  if (welcomeSound) {
+    welcomeSound.currentTime = 0;
+    const p = welcomeSound.play();
+    if (p && typeof p.catch === "function") p.catch(()=>{ /* ignored */ });
+  }
+}
+
+if (welcomeClose) {
+  welcomeClose.addEventListener("click", closeWelcome);
+}
+
+// Optional: also close if user clicks outside modal
+welcomeOverlay?.addEventListener("click", (e)=>{
+  if (e.target === welcomeOverlay) closeWelcome();
+});
+
+  </script>
+</body>
+</html>
